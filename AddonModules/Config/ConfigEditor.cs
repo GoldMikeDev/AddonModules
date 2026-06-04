@@ -1,0 +1,4 @@
+namespace Rename.AddonModules.Config
+{
+    
+}
