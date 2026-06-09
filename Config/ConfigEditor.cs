@@ -1,4 +1,0 @@
-namespace Rename.AddonModules.Config
-{
-    
-}
