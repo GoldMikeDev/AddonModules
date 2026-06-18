@@ -6,7 +6,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 [assembly: SupportedOSPlatform("windows")]
-namespace ToolBox.AddonModules.Updater
+namespace Rename.AddonModules.Updater
 {
 	public static partial class Update
 	{
