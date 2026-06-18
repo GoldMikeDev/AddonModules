@@ -6,14 +6,15 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 [assembly: SupportedOSPlatform("windows")]
-namespace Rename.AddonModules.Updater
+namespace ToolBox.AddonModules.Updater
 {
 	public static partial class Update
 	{
 		enum TOKEN_INFORMATION_CLASS { TokenElevation = 20 }
-		[LibraryImport("advapi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static partial bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
-		[LibraryImport("advapi32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetTokenInformation(IntPtr tokenHandle, TOKEN_INFORMATION_CLASS tokenInformationClass, IntPtr tokenInformation, uint tokenInformationLength, out uint returnLength);
-		[LibraryImport("kernel32.dll")][return: MarshalAs(UnmanagedType.Bool)] private static partial bool CloseHandle(IntPtr handle);
+		[GeneratedRegex("<Version>(.*?)</Version>", RegexOptions.Compiled | RegexOptions.CultureInvariant)] private static partial Regex VersionRegex();
+		[LibraryImport("advapi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
+		[LibraryImport("advapi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetTokenInformation(IntPtr tokenHandle, TOKEN_INFORMATION_CLASS tokenInformationClass, IntPtr tokenInformation, uint tokenInformationLength, out uint returnLength);
+		[LibraryImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool CloseHandle(IntPtr handle);
 		[StructLayout(LayoutKind.Sequential)] private struct TOKEN_ELEVATION { public uint tokenIsElevated; }
 		public static bool TryHandleUpdateCommandTree(string[] args, string toolId, string csprojFileName, out int exitCode)
 		{
@@ -28,16 +29,16 @@ namespace Rename.AddonModules.Updater
 			if (!isUpdatePrimary) { exitCode = 2; return false; }
 			if (!ProcessElevated())
 			{
-				Console.WriteLine("⚠️ Update command requires elevation.");
+				Console.WriteLine(" ⚠️ Update command requires elevation.");
 			CredentialQuery:
-				Console.WriteLine("⚠️ Enter admin credentials? (Y/N): ");
+				Console.WriteLine(" ⚠️ Enter admin credentials? (Y/N): ");
 				string? input = Console.ReadLine();
 				if (input?.Trim().ToUpper() == "Y")
 				{
 				CredentialInput:
-					Console.WriteLine("🔒 Enter username: ");
+					Console.WriteLine(" 🔒 Enter username: ");
 					user = Console.ReadLine();
-					Console.WriteLine("🔒 Enter password: ");
+					Console.WriteLine(" 🔒 Enter password: ");
 					while (true)
 					{
 						var key = Console.ReadKey(intercept: true);
@@ -45,7 +46,7 @@ namespace Rename.AddonModules.Updater
 						pass.AppendChar(key.KeyChar);
 					}
 				CredentialConfirm:
-					Console.WriteLine("❓ Have credentials been entered correctly? (Y/N): ");
+					Console.WriteLine(" ❓ Have credentials been entered correctly? (Y/N): ");
 					string? confirm = Console.ReadLine();
 					if (confirm?.Trim().ToUpper() == "Y") { credentials = true; }
 					else if (confirm?.Trim().ToUpper() == "N") { goto CredentialInput; }
@@ -56,11 +57,11 @@ namespace Rename.AddonModules.Updater
 			}
 			bool forceUpdate = args.Contains("--forceUpdate", StringComparer.Ordinal);
 			bool skipVersion = args.Contains("--skipVersion", StringComparer.Ordinal);
-			if (skipVersion && !forceUpdate) { Console.WriteLine("❌ --skipVersion requires --forceUpdate as a secondary arg."); exitCode = 1; return true; }
+			if (skipVersion && !forceUpdate) { Console.WriteLine(" ❌ --skipVersion requires --forceUpdate as a secondary arg."); exitCode = 1; return true; }
 			var allowed = new HashSet<string>(StringComparer.Ordinal) { "--updateMajor", "--updateMinor", "--update", "--forceUpdate", "--skipVersion" };
-			foreach (var a in args) { if (a.StartsWith("--", StringComparison.Ordinal) && !allowed.Contains(a)) { Console.WriteLine($"❌ Unknown arg for update command: {a}"); exitCode = 1; return true; } }
+			foreach (var a in args) { if (a.StartsWith("--", StringComparison.Ordinal) && !allowed.Contains(a)) { Console.WriteLine($" ❌ Unknown arg for update command: {a}"); exitCode = 1; return true; } }
 			try { UpdateTool(toolId, csprojFileName, hasUpdateMajor, hasUpdateMinor, forceUpdate, skipVersion, credentials, user, pass); pass.Dispose(); exitCode = 0; return true; }
-			catch (Exception ex) { pass.Dispose(); Console.WriteLine($"❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
+			catch (Exception ex) { pass.Dispose(); Console.WriteLine($" ❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
 		}
 		private static bool ProcessElevated()
 		{
@@ -83,20 +84,20 @@ namespace Rename.AddonModules.Updater
 			var installedNupkg = FindInstalledNupkg(toolId) ?? throw new Exception($"❌ No installed {toolId} package found.");
 			if (!forceUpdate)
 			{
-				Console.WriteLine("🔄 Hashing currently installed package...");
+				Console.WriteLine(" 🔄 Hashing currently installed package...");
 				var currentHash = ComputeFileHash(installedNupkg);
-				Console.WriteLine($"🔒 Currently installed package hash: {currentHash}");
-				Console.WriteLine("🏗️ Building and packing current version...");
-				Cmd.Run("dotnet", "build -c Release", projectDir, false, false, true, inheritConsole);
-				Cmd.Run("dotnet", "pack -c Release", projectDir, false, false, true, inheritConsole);
+				Console.WriteLine($" 🔒 Currently installed package hash: {currentHash}");
+				Console.WriteLine(" 🏗️ Building and packing current version...");
+				Cmd.Run("dotnet", "build -c Release", projectDir, false, true, true, inheritConsole);
+				Cmd.Run("dotnet", "pack -c Release", projectDir, false, true, true, inheritConsole);
 				var latestForCompare = FindLatestNupkg(nupkgPath);
-				Console.WriteLine($"📁 Latest nupkg package found: {Path.GetFileName(latestForCompare)} (modified {File.GetLastWriteTime(latestForCompare):dd-MM-yyyy HH:mm:ss})");
-				Console.WriteLine("🔄 Hashing new package...");
+				Console.WriteLine($" 📁 Latest nupkg package found: {Path.GetFileName(latestForCompare)} (modified {File.GetLastWriteTime(latestForCompare):dd-MM-yyyy HH:mm:ss})");
+				Console.WriteLine(" 🔄 Hashing new package...");
 				var newHash = ComputeFileHash(latestForCompare);
-				Console.WriteLine($"🔒 Newly built package hash: {newHash}");
-				Console.WriteLine("⚖️ Comparing current hash to new build hash...");
-				if (string.Equals(currentHash, newHash, StringComparison.Ordinal)) { Console.WriteLine($"🔁 {toolId} is up to date. Packages are identical."); return; }
-				Console.WriteLine("🆕 Changes detected — proceeding with update...");
+				Console.WriteLine($" 🔒 Newly built package hash: {newHash}");
+				Console.WriteLine(" ⚖️ Comparing current hash to new build hash...");
+				if (string.Equals(currentHash, newHash, StringComparison.Ordinal)) { Console.WriteLine($" 🔁 {toolId} is up to date. Packages are identical."); return; }
+				Console.WriteLine(" 🆕 Changes detected — proceeding with update...");
 			}
 			string? oldVersion = null;
 			string? newVersion = null;
@@ -116,23 +117,31 @@ namespace Rename.AddonModules.Updater
 					newVersion = $"{majorNum}.{minorNum}.{patchNum}";
 					csprojText = csprojText.Replace($"<Version>{oldVersion}</Version>", $"<Version>{newVersion}</Version>");
 					File.WriteAllText(csprojPath, csprojText);
-					Console.WriteLine($"⏫ Incremented version: {oldVersion} → {newVersion}");
+					Console.WriteLine($" ⏫ Incremented version: {oldVersion} → {newVersion}");
 				}
-				else Console.WriteLine("⏭️ Skipping version increment");
-				Console.WriteLine("🏗️ Building and packing...");
-				Cmd.Run("dotnet", "build -c Release", projectDir, false, false, true, inheritConsole);
-				Cmd.Run("dotnet", "pack -c Release", projectDir, false, false, true, inheritConsole);
+				else Console.WriteLine(" ⏭️ Skipping version increment");
+				Console.WriteLine(" 🏗️ Building and packing...");
+				Cmd.Run("dotnet", "build -c Release", projectDir, false, true, true, inheritConsole);
+				Cmd.Run("dotnet", "pack -c Release", projectDir, false, true, true, inheritConsole);
 			}
-			catch (Exception ex) { Console.WriteLine($"❌ Update failed: {ex.Message}"); Cleanup(newVersion, oldVersion, csprojPath); return; }
+			catch (Exception ex) { Console.WriteLine($" ❌ Update failed: {ex.Message}"); Cleanup(newVersion, oldVersion, csprojPath); return; }
 			var nupkg = FindLatestNupkg(nupkgPath);
 			var pkgDir = Path.GetDirectoryName(nupkg)!;
 			int currentPid = Environment.ProcessId;
 			var psExe = FindPowerShellExe();
-			var updateScriptPath = Path.Combine(AppContext.BaseDirectory, "Updater", "UpdateScript.ps1");
+			var updateScriptPath = Path.Combine(AppContext.BaseDirectory, "AddonModules", "Updater", "UpdateScript.ps1");
 			var psArgs = $"-NoLogo -NoProfile -ExecutionPolicy Bypass -File \"{updateScriptPath}\" -toolId \"{toolId}\" {(skipVersion ? "-skipVersion " : "")}-pidToWait {currentPid} -pkgDir \"{pkgDir}\" -csprojPath \"{csprojPath}\" -oldVersion \"{oldVersion ?? ""}\" -newVersion \"{newVersion ?? ""}\"";
-			var psi = new ProcessStartInfo(psExe, psArgs) { UseShellExecute = !inheritConsole, CreateNoWindow = false, RedirectStandardOutput = false, RedirectStandardError = false, WorkingDirectory = Environment.CurrentDirectory };
+			var psi = new ProcessStartInfo(psExe, psArgs)
+			{
+				UseShellExecute = !inheritConsole,
+				CreateNoWindow = false,
+				RedirectStandardOutput = false,
+				RedirectStandardError = false,
+				WorkingDirectory = Environment.CurrentDirectory,
+				Verb = "RunAs"
+			};
 			if (credentials == true) { psi.UserName = user; psi.Password = pass; }
-			Console.WriteLine("🧠 Executing: UpdateScript.ps1");
+			Console.WriteLine(" 🧠 Executing: UpdateScript.ps1");
 			_ = Process.Start(psi) ?? throw new Exception("❌ Failed to start UpdateScript PowerShell process.");
 			Console.Out.Flush();
 			Environment.Exit(0);
@@ -144,7 +153,7 @@ namespace Rename.AddonModules.Updater
 			var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 			var repos = Path.Combine(home, "source", "repos");
 			var found = TryFindFile(repos, csprojFileName) ?? TryFindFile(home, csprojFileName);
-			if (found != null) { var projDir = Path.GetDirectoryName(found)!; Console.WriteLine($"📁 Found project at: {projDir}"); return projDir; }
+			if (found != null) { var projDir = Path.GetDirectoryName(found)!; Console.WriteLine($" 📁 Found project at: {projDir}"); return projDir; }
 			throw new Exception($"❌ Could not locate {csprojFileName}.");
 		}
 		private static string? TryFindFile(string root, string fileName)
@@ -168,9 +177,11 @@ namespace Rename.AddonModules.Updater
 		}
 		private static string FindPowerShellExe()
 		{
-			var psExe = @"C:\Program Files\PowerShell\7-preview\pwsh.exe";
-			if (!File.Exists(psExe)) psExe = @"C:\Program Files\PowerShell\7\pwsh.exe";
-			if (!File.Exists(psExe)) psExe = "pwsh";
+			var psExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\Microsoft.PowerShellPreview_8wekyb3d8bbwe\pwsh.exe");
+			var path = Environment.GetEnvironmentVariable("PATH") ?? "";
+			bool pwshOnPath = path.Split(';').Any(dir => File.Exists(Path.Combine(dir, "pwsh.exe")));
+			if (!File.Exists(psExe) && pwshOnPath) { psExe = "pwsh"; }
+			else if (!File.Exists(psExe) && !pwshOnPath) { psExe = @"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"; }
 			return psExe;
 		}
 		private static string ComputeFileHash(string filePath)
@@ -181,7 +192,7 @@ namespace Rename.AddonModules.Updater
 		}
 		private static void Cleanup(string? newVersion, string? oldVersion, string csprojPath)
 		{
-			Console.WriteLine("🧹 Performing cleanup...");
+			Console.WriteLine(" 🧹 Performing cleanup...");
 			try
 			{
 				if (!string.IsNullOrEmpty(oldVersion) && !string.IsNullOrEmpty(newVersion))
@@ -189,20 +200,23 @@ namespace Rename.AddonModules.Updater
 					var rollbackText = File.ReadAllText(csprojPath);
 					rollbackText = rollbackText.Replace($"<Version>{newVersion}</Version>", $"<Version>{oldVersion}</Version>");
 					File.WriteAllText(csprojPath, rollbackText);
-					Console.WriteLine($"↩️ Restored version number: {newVersion} → {oldVersion}");
+					Console.WriteLine($" ↩️ Restored version number: {newVersion} → {oldVersion}");
 				}
 			}
-			catch (Exception ex) { Console.WriteLine($"⚠️ Cleanup encountered an issue: {ex.Message}"); }
-			Console.WriteLine("✅ Cleanup complete.");
+			catch (Exception ex) { Console.WriteLine($" ⚠️ Cleanup encountered an issue: {ex.Message}"); }
+			Console.WriteLine(" ✅ Cleanup complete.");
 		}
-		[GeneratedRegex("<Version>(.*?)</Version>", RegexOptions.Compiled | RegexOptions.CultureInvariant)] private static partial Regex VersionRegex();
 		internal static class Cmd
 		{
 			public static (int ExitCode, string Output, string Error) Run(string exe, string args, string? workingDir, bool silent, bool streamToConsole, bool exitOnFail, bool inheritConsole)
 			{
 				try
 				{
-					if (!silent) Console.WriteLine($"🧠 Executing: {exe} {args}");
+					if (!silent)
+					{
+						Console.WriteLine($" 🧠 Executing: {exe} {args}");
+						Console.WriteLine();
+					}
 					if (exe.Equals("dotnet")) args += " --tl:on";
 					var psi = new ProcessStartInfo(exe, args) { WorkingDirectory = workingDir ?? Environment.CurrentDirectory, UseShellExecute = false, CreateNoWindow = !inheritConsole, RedirectStandardOutput = !inheritConsole, RedirectStandardError = !inheritConsole };
 					if (!inheritConsole) { psi.StandardOutputEncoding = Encoding.UTF8; psi.StandardErrorEncoding = Encoding.UTF8; }
@@ -213,7 +227,7 @@ namespace Rename.AddonModules.Updater
 						p.WaitForExit();
 						if (!silent)
 						{
-							Console.WriteLine($"🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
+							Console.WriteLine($" 🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
 							if (p.ExitCode != 0 && exitOnFail) Environment.Exit(p.ExitCode);
 						}
 						return (p.ExitCode, string.Empty, string.Empty);
@@ -232,30 +246,35 @@ namespace Rename.AddonModules.Updater
 					{
 						if (p.ExitCode != 0 && !streamToConsole)
 						{
-							Console.WriteLine($"❌ Command failed to execute: {exe} {args}");
-							Console.WriteLine("--------------------");
+							Console.WriteLine($" ❌ Command failed to execute: {exe} {args}");
+							Console.WriteLine("----------------------------------------------------------------");
 							if (!string.IsNullOrWhiteSpace(output)) Console.WriteLine($"STDOUT:\n{output}");
 							if (!string.IsNullOrWhiteSpace(error)) Console.WriteLine($"STDERR:\n{error}");
-							Console.WriteLine("--------------------");
+							Console.WriteLine("----------------------------------------------------------------");
 						}
-						Console.WriteLine($"🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
+						Console.WriteLine($" 🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
 						if (p.ExitCode != 0 && exitOnFail) { Console.Out.Flush(); Console.Error.Flush(); Environment.Exit(p.ExitCode); }
 					}
 					return (p.ExitCode, output, error);
 				}
-				catch (Exception ex) { Console.WriteLine($"❌ failed to execute '{exe} {args}': {ex.Message}"); return (-1, string.Empty, ex.Message); }
+				catch (Exception ex) { Console.WriteLine($" ❌ failed to execute '{exe} {args}': {ex.Message}"); return (-1, string.Empty, ex.Message); }
 			}
-			private static string ExitMessage(int code)
+			private static string ExitMessage(long code)
 			{
 				return code switch
 				{
+					-1 => "❌ Failed to start or was forcibly terminated.",
 					0 => "✅ Success — operation completed successfully.",
 					1 => "⚠️ General error — check command syntax or output for details.",
 					2 => "❌ Invalid arguments or syntax.",
 					3 => "🚫 Access denied or insufficient permissions.",
 					4 => "📦 Target file or package not found.",
 					5 => "🧱 I/O or path-related error.",
+					126 => "🔒 Not executable — check file permissions.",
 					127 => "❓ Command not found or missing from PATH.",
+					128 => "📶 Terminated by external signal.",
+					130 => "⛔ Terminated by Ctrl+C.",
+					3221225786 => "⛔ Terminated by Ctrl+C (Windows NTSTATUS).",
 					_ => $"🌀 Tool-specific exit code ({code})."
 				};
 			}
