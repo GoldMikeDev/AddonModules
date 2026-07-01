@@ -16,7 +16,7 @@ namespace Rename.AddonModules.Updater
 		[LibraryImport("advapi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetTokenInformation(IntPtr tokenHandle, TOKEN_INFORMATION_CLASS tokenInformationClass, IntPtr tokenInformation, uint tokenInformationLength, out uint returnLength);
 		[LibraryImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool CloseHandle(IntPtr handle);
 		[StructLayout(LayoutKind.Sequential)] private struct TOKEN_ELEVATION { public uint tokenIsElevated; }
-		public static bool TryHandleUpdateCommandTree(string[] args, string toolId, string csprojFileName, out int exitCode)
+		internal static bool TryHandleUpdateCommandTree(string[] args, string toolId, string csprojFileName, out int exitCode, ConsoleSpinner? spinner = null)
 		{
 			bool credentials = false;
 			string? user = null;
@@ -60,7 +60,7 @@ namespace Rename.AddonModules.Updater
 			if (skipVersion && !forceUpdate) { Console.WriteLine(" ❌ --skipVersion requires --forceUpdate as a secondary arg."); exitCode = 1; return true; }
 			var allowed = new HashSet<string>(StringComparer.Ordinal) { "--updateMajor", "--updateMinor", "--update", "--forceUpdate", "--skipVersion" };
 			foreach (var a in args) { if (a.StartsWith("--", StringComparison.Ordinal) && !allowed.Contains(a)) { Console.WriteLine($" ❌ Unknown arg for update command: {a}"); exitCode = 1; return true; } }
-			try { UpdateTool(toolId, csprojFileName, hasUpdateMajor, hasUpdateMinor, forceUpdate, skipVersion, credentials, user, pass); pass.Dispose(); exitCode = 0; return true; }
+			try { UpdateTool(toolId, csprojFileName, hasUpdateMajor, hasUpdateMinor, forceUpdate, skipVersion, credentials, user, pass, true, spinner); pass.Dispose(); exitCode = 0; return true; }
 			catch (Exception ex) { pass.Dispose(); Console.WriteLine($" ❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
 		}
 		private static bool ProcessElevated()
@@ -76,7 +76,7 @@ namespace Rename.AddonModules.Updater
 			Marshal.FreeHGlobal(tokenElevation);
 			return elevation;
 		}
-		public static void UpdateTool(string toolId, string csprojFileName, bool major, bool minor, bool forceUpdate, bool skipVersion, bool credentials = false, string? user = null, SecureString? pass = null, bool inheritConsole = true)
+		internal static void UpdateTool(string toolId, string csprojFileName, bool major, bool minor, bool forceUpdate, bool skipVersion, bool credentials = false, string? user = null, SecureString? pass = null, bool inheritConsole = true, ConsoleSpinner? spinner = null)
 		{
 			var projectDir = FindProjectDir(csprojFileName);
 			var csprojPath = Path.Combine(projectDir, csprojFileName);
@@ -143,6 +143,14 @@ namespace Rename.AddonModules.Updater
 			if (credentials == true) { psi.UserName = user; psi.Password = pass; }
 			Console.WriteLine(" 🧠 Executing: UpdateScript.ps1");
 			_ = Process.Start(psi) ?? throw new Exception("❌ Failed to start UpdateScript PowerShell process.");
+			if (spinner != null) { spinner.Start(" ⏳ Closing ToolBox"); AppDomain.CurrentDomain.ProcessExit += (_, _) => spinner.StopAndFlush(); }
+			else { Console.WriteLine(" 🚪 Closing ToolBox..."); }
+			var timeoutThread = new Thread(() => {
+				Thread.Sleep(3000);
+				spinner?.StopAndFlush();
+				Process.GetCurrentProcess().Kill();
+			}) { IsBackground = true };
+			timeoutThread.Start();
 			Console.Out.Flush();
 			Environment.Exit(0);
 		}
@@ -206,9 +214,9 @@ namespace Rename.AddonModules.Updater
 			catch (Exception ex) { Console.WriteLine($" ⚠️ Cleanup encountered an issue: {ex.Message}"); }
 			Console.WriteLine(" ✅ Cleanup complete.");
 		}
-		internal static class Cmd
+		private static class Cmd
 		{
-			public static (int ExitCode, string Output, string Error) Run(string exe, string args, string? workingDir, bool silent, bool streamToConsole, bool exitOnFail, bool inheritConsole)
+			internal static (int ExitCode, string Output, string Error) Run(string exe, string args, string? workingDir, bool silent, bool streamToConsole, bool exitOnFail, bool inheritConsole)
 			{
 				try
 				{
