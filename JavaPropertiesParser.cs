@@ -1,6 +1,6 @@
 ﻿using System.Globalization;
 using System.Text;
-namespace CsharpDashboardCollector
+namespace Rename.AddonModules
 {
 	public static class JavaPropertiesParser
 	{
