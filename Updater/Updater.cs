@@ -1,7 +1,5 @@
 ﻿using System.Diagnostics;
-using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Security;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -10,73 +8,24 @@ namespace Rename.AddonModules.Updater
 {
 	public static partial class Update
 	{
-		enum TOKEN_INFORMATION_CLASS { TokenElevation = 20 }
 		[GeneratedRegex("<Version>(.*?)</Version>", RegexOptions.Compiled | RegexOptions.CultureInvariant)] private static partial Regex VersionRegex();
-		[LibraryImport("advapi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool OpenProcessToken(IntPtr processHandle, uint desiredAccess, out IntPtr tokenHandle);
-		[LibraryImport("advapi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool GetTokenInformation(IntPtr tokenHandle, TOKEN_INFORMATION_CLASS tokenInformationClass, IntPtr tokenInformation, uint tokenInformationLength, out uint returnLength);
-		[LibraryImport("kernel32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static partial bool CloseHandle(IntPtr handle);
-		[StructLayout(LayoutKind.Sequential)] private struct TOKEN_ELEVATION { public uint tokenIsElevated; }
 		internal static bool TryHandleUpdateCommandTree(string[] args, string toolId, string csprojFileName, out int exitCode, ConsoleSpinner? spinner = null)
 		{
-			bool credentials = false;
-			string? user = null;
-			SecureString? pass = new();
 			bool hasUpdateMajor = args.Contains("--updateMajor", StringComparer.Ordinal);
 			bool hasUpdateMinor = args.Contains("--updateMinor", StringComparer.Ordinal);
 			bool hasUpdate = args.Contains("--update", StringComparer.Ordinal);
 			if ((hasUpdateMajor && hasUpdateMinor) || (hasUpdateMajor && hasUpdate) || (hasUpdateMinor && hasUpdate)) { Console.WriteLine("Only one primary argument allowed."); exitCode = 2; return true; }
 			bool isUpdatePrimary = hasUpdateMajor || hasUpdateMinor || hasUpdate;
 			if (!isUpdatePrimary) { exitCode = 2; return false; }
-			if (!ProcessElevated())
-			{
-				Console.WriteLine(" ⚠️ Update command requires elevation.");
-			CredentialQuery:
-				Console.WriteLine(" ⚠️ Enter admin credentials? (Y/N): ");
-				string? input = Console.ReadLine();
-				if (input?.Trim().ToUpper() == "Y")
-				{
-				CredentialInput:
-					Console.WriteLine(" 🔒 Enter username: ");
-					user = Console.ReadLine();
-					Console.WriteLine(" 🔒 Enter password: ");
-					while (true)
-					{
-						var key = Console.ReadKey(intercept: true);
-						if (key.Key == ConsoleKey.Enter) { break; }
-						pass.AppendChar(key.KeyChar);
-					}
-				CredentialConfirm:
-					Console.WriteLine(" ❓ Have credentials been entered correctly? (Y/N): ");
-					string? confirm = Console.ReadLine();
-					if (confirm?.Trim().ToUpper() == "Y") { credentials = true; }
-					else if (confirm?.Trim().ToUpper() == "N") { goto CredentialInput; }
-					else { goto CredentialConfirm; }
-				}
-				else if (input?.Trim().ToUpper() == "N") { pass.Dispose(); exitCode = 3; return false; }
-				else { goto CredentialQuery; }
-			}
 			bool forceUpdate = args.Contains("--forceUpdate", StringComparer.Ordinal);
 			bool skipVersion = args.Contains("--skipVersion", StringComparer.Ordinal);
 			if (skipVersion && !forceUpdate) { Console.WriteLine(" ❌ --skipVersion requires --forceUpdate as a secondary arg."); exitCode = 1; return true; }
 			var allowed = new HashSet<string>(StringComparer.Ordinal) { "--updateMajor", "--updateMinor", "--update", "--forceUpdate", "--skipVersion" };
 			foreach (var a in args) { if (a.StartsWith("--", StringComparison.Ordinal) && !allowed.Contains(a)) { Console.WriteLine($" ❌ Unknown arg for update command: {a}"); exitCode = 1; return true; } }
-			try { UpdateTool(toolId, csprojFileName, hasUpdateMajor, hasUpdateMinor, forceUpdate, skipVersion, credentials, user, pass, true, spinner); pass.Dispose(); exitCode = 0; return true; }
-			catch (Exception ex) { pass.Dispose(); Console.WriteLine($" ❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
+			try { UpdateTool(toolId, csprojFileName, hasUpdateMajor, hasUpdateMinor, forceUpdate, skipVersion, true, spinner); exitCode = 0; return true; }
+			catch (Exception ex) { Console.WriteLine($" ❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
 		}
-		private static bool ProcessElevated()
-		{
-			bool elevation = false;
-			nint tokenElevation = Marshal.AllocHGlobal(Marshal.SizeOf<TOKEN_ELEVATION>());
-			bool openProcess = OpenProcessToken(Process.GetCurrentProcess().Handle, 0x0008 /*TOKEN_QUERY*/, out nint tokenHandle);
-			if (!openProcess) { throw new Exception("❌ Failed to open process token."); }
-			bool tokenInformation = GetTokenInformation(tokenHandle, TOKEN_INFORMATION_CLASS.TokenElevation, tokenElevation, (uint)Marshal.SizeOf<TOKEN_ELEVATION>(), out _);
-			if (!tokenInformation) { CloseHandle(tokenHandle); Marshal.FreeHGlobal(tokenElevation); throw new Exception("❌ Failed to get token information."); }
-			CloseHandle(tokenHandle);
-			if (Marshal.ReadInt32(tokenElevation) != 0) elevation = true;
-			Marshal.FreeHGlobal(tokenElevation);
-			return elevation;
-		}
-		internal static void UpdateTool(string toolId, string csprojFileName, bool major, bool minor, bool forceUpdate, bool skipVersion, bool credentials = false, string? user = null, SecureString? pass = null, bool inheritConsole = true, ConsoleSpinner? spinner = null)
+		internal static void UpdateTool(string toolId, string csprojFileName, bool major, bool minor, bool forceUpdate, bool skipVersion, bool inheritConsole = true, ConsoleSpinner? spinner = null)
 		{
 			var projectDir = FindProjectDir(csprojFileName);
 			var csprojPath = Path.Combine(projectDir, csprojFileName);
@@ -138,9 +87,7 @@ namespace Rename.AddonModules.Updater
 				RedirectStandardOutput = false,
 				RedirectStandardError = false,
 				WorkingDirectory = Environment.CurrentDirectory,
-				Verb = "RunAs"
 			};
-			if (credentials == true) { psi.UserName = user; psi.Password = pass; }
 			Console.WriteLine(" 🧠 Executing: UpdateScript.ps1");
 			_ = Process.Start(psi) ?? throw new Exception("❌ Failed to start UpdateScript PowerShell process.");
 			if (spinner != null) { spinner.Start(" ⏳ Closing ToolBox"); AppDomain.CurrentDomain.ProcessExit += (_, _) => spinner.StopAndFlush(); }

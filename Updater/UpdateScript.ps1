@@ -9,12 +9,16 @@
     [string]$newVersion
 )
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-if (-not ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator))
-{
-    Start-Process powershell -ArgumentList "-NoExit -ExecutionPolicy Bypass -File `"$PSCommandPath`" -toolId `"$toolId`" -pidToWait $pidToWait -pkgDir `"$pkgDir`" -csprojPath `"$csprojPath`" -oldVersion `"$oldVersion`" -newVersion `"$newVersion`"$(if ($skipVersion) { ' -skipVersion' })" -Verb RunAs
-    exit
-}
-Write-Host " ⌛ Waiting for $toolId process PID=$pidToWait to exit..."
+Add-Type -Name Win32 -Namespace Console -MemberDefinition @'
+[DllImport("kernel32.dll")]
+public static extern IntPtr GetConsoleWindow();
+[DllImport("user32.dll", SetLastError = true)]
+public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+'@
+$hwnd = [Console.Win32]::GetConsoleWindow()
+$ownerPid = 0
+[void][Console.Win32]::GetWindowThreadProcessId($hwnd, [ref]$ownerPid)
+Write-Host " ⌛ Waiting for $toolId process PID: $pidToWait to exit..."
 while (Get-Process -Id $pidToWait -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 200 }
 Write-Host " ✅ $toolId process exited. Proceeding with update..."
 Write-Host " 🏗️ Moving new package to local nupkg install directory..."
@@ -29,11 +33,12 @@ if ($latest)
 else
 {
     Write-Host " ❌ No nupkg found in $pkgDir"
+    if ($ownerPid -eq $PID) { Read-Host " 🚪 Press Enter to exit" }
     exit 1
 }
 Write-Host " ⚙️ Updating $toolId..."
 Write-Host " 🧠 Executing: dotnet tool update --global $toolId"
-& dotnet tool update --global $toolId
+& dotnet tool update --g $toolId --v detailed
 if ($LASTEXITCODE -eq 0)
 {
     $timestamp = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
@@ -51,3 +56,4 @@ else
         Write-Host " ↩️ Restored version number: $newVersion → $oldVersion"
     }
 }
+if ($ownerPid -eq $PID) { Read-Host " 🚪 Press Enter to exit" }

@@ -1,6 +1,6 @@
 ﻿namespace Rename.AddonModules
 {
-	public class ConsoleSpinner(Lock outputLock, string prefix, int intervalMs = 100, int minSpinnerMs = 0)
+	public sealed class ConsoleSpinner(Lock outputLock, string prefix, int intervalMs = 100, int minSpinnerMs = 0) : IDisposable
 	{
 		readonly Lock outputLock = outputLock;
 		readonly string prefix = prefix;
@@ -23,7 +23,7 @@
 			if (Interlocked.Exchange(ref active, 1) != 0) return;
 			this.text = text;
 			spinnerStartedAt = Environment.TickCount64;
-			try { cursorOldVisible = Console.CursorVisible; Console.CursorVisible = false; cursorCaptured = true; } catch { cursorCaptured = false; }
+			try { cursorOldVisible = !OperatingSystem.IsWindows() || Console.CursorVisible; Console.CursorVisible = false; cursorCaptured = true; } catch { cursorCaptured = false; }
 			spinning = true;
 			spinnerThread = new Thread(() => {
 				char[] frames = ['|', '/', '-', '\\'];
@@ -33,8 +33,7 @@
 					lock (outputLock) { try { Console.Write("\r" + prefix + this.text + " " + frames[i++ & 3] + " "); } catch { } }
 					Thread.Sleep(intervalMs);
 				}
-			})
-			{ IsBackground = true };
+			}) { IsBackground = true };
 			lock (outputLock) { try { Console.Write("\r" + prefix + this.text + " | "); } catch { } }
 			spinnerThread.Start();
 		}
@@ -71,5 +70,6 @@
 				}
 			}
 		}
+		public void Dispose() { StopAndFlush(); }
 	}
 }

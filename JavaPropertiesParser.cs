@@ -5,7 +5,6 @@ namespace Rename.AddonModules
 	public static class JavaPropertiesParser
 	{
 		public static readonly Dictionary<string, string> config = [];
-		private static readonly ILogger L = DashboardCollector.L;
 		public static void LoadProperties(Stream input)
 		{
 			try
@@ -25,8 +24,8 @@ namespace Rename.AddonModules
 					config[key] = value;
 				}
 			}
-			catch (IOException e) { L.LogError(e, "Failed to load properties from stream"); throw; }
-			catch (Exception e) { L.LogError(e, "Unexpected error while loading properties"); throw; }
+			catch (IOException e) { Console.WriteLine($" ❌ Failed to load properties from stream: {e.Message}"); throw; }
+			catch (Exception e) { Console.WriteLine($" ❌ Unexpected error while loading properties: {e.Message}"); throw; }
 		}
 		private static string? ReadLogicalLine(this StreamReader reader)
 		{

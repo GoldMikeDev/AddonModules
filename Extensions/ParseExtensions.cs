@@ -1,5 +1,5 @@
 ﻿using System.Reflection;
-namespace ToolBox.AddonModules.Extensions
+namespace Rename.AddonModules.Extensions
 {
 	public class ParseExtensions()
 	{
@@ -26,6 +26,7 @@ namespace ToolBox.AddonModules.Extensions
 				_ => throw new ParseException($"Unsupported type: {type}"),
 			};
 			Type t = Type.GetType(type) ?? throw new ParseException($"Type not found: {type}");
+			if (data.GetType() == t) { output = data; return output; }
 			MethodInfo tryParse = t.GetMethod("TryParse", [typeof(string), t.MakeByRefType()]) ?? throw new ParseException($"Method not found: TryParse");
 			object? result = tryParse.Invoke(null, input) ?? throw new ParseException($"Failed to parse {type}");
 			bool success = (bool)result;

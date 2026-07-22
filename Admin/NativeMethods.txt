@@ -1,0 +1,3 @@
+GetTokenInformation
+OpenProcessToken
+TOKEN_ELEVATION
