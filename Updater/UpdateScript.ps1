@@ -38,7 +38,7 @@ else
 }
 Write-Host " ⚙️ Updating $toolId..."
 Write-Host " 🧠 Executing: dotnet tool update --global $toolId"
-& dotnet tool update --g $toolId --v detailed
+& dotnet tool update -g $toolId -v detailed
 if ($LASTEXITCODE -eq 0)
 {
     $timestamp = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
