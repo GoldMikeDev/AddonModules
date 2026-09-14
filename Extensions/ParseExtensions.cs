@@ -1,9 +1,9 @@
 ﻿using System.Reflection;
 namespace Rename.AddonModules.Extensions
 {
-	public class ParseExtensions()
+	static class ParseExtensions
 	{
-		public static object Parse(string type, object data)
+		internal static dynamic Parse(string type, object data)
 		{
 			object? output = null;
 			object?[] input = [data, output];
@@ -30,15 +30,15 @@ namespace Rename.AddonModules.Extensions
 			MethodInfo tryParse = t.GetMethod("TryParse", [typeof(string), t.MakeByRefType()]) ?? throw new ParseException($"Method not found: TryParse");
 			object? result = tryParse.Invoke(null, input) ?? throw new ParseException($"Failed to parse {type}");
 			bool success = (bool)result;
-			output = input[1] as object ?? throw new ParseException($"Failed to parse {type}");
+			output = input[1] ?? throw new ParseException($"Failed to parse {type}");
 			if (success) { return output; }
 			else { throw new ParseException($"Failed to parse {type}"); }
 		}
 	}
-	public class ParseException : Exception
+	class ParseException : Exception
 	{
-		public ParseException() { }
-		public ParseException(string message) : base(message) { }
+		internal ParseException() { }
+		internal ParseException(string message) : base(message) { }
 		public override string? StackTrace => null;
 	}
 }

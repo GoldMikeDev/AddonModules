@@ -1,8 +1,8 @@
-﻿using System.Diagnostics;
-using System.Text;
-using Rename.AddonModules.Extensions;
+﻿using Rename.AddonModules.Extensions;
 using static Rename.AddonModules.Extensions.ParseExtensions;
 using static Rename.AddonModules.Extensions.RangeExtensions;
+using System.Diagnostics;
+using System.Text;
 namespace Rename.AddonModules
 {
 	public class CSRB                                                       //																Default config file size: 1MiB (1.04858MB)
@@ -341,29 +341,13 @@ namespace Rename.AddonModules
 			};
 			try
 			{
-				object check;
-				switch (direction)
-				{
-					case Direction.previous:
-						check = Parse(type, ReadField(csrbFile, UTF8, ((recordIndex - i) + maxIndex) % maxIndex, fieldRange));
-						return type switch
-						{
-							"int" => (int)check,
-							"string" => (string)check,
-							_ => throw new UnreachableException("⚠️ Invalid type. Must be 'int' or 'string'."),
-						};
-					case Direction.next:
-						check = Parse(type, ReadField(csrbFile, UTF8, (recordIndex + i) % maxIndex, fieldRange));
-						return type switch
-						{
-							"int" => (int)check,
-							"string" => (string)check,
-							_ => throw new UnreachableException("⚠️ Invalid type. Must be 'int' or 'string'."),
-						};
-					default:
-						throw new UnreachableException("⚠️ Invalid direction. Must be 'previous' or 'next'.");
-				}
-			}
+                return direction switch
+                {
+                    Direction.previous => Parse(type, ReadField(csrbFile, UTF8, ((recordIndex - i) + maxIndex) % maxIndex, fieldRange)),
+                    Direction.next => Parse(type, ReadField(csrbFile, UTF8, (recordIndex + i) % maxIndex, fieldRange)),
+                    _ => throw new UnreachableException("⚠️ Invalid direction. Must be 'previous' or 'next'."),
+                };
+            }
 			catch (ParseException) { FieldException(field, spinner); return null; }
 		}
 		public static void FieldException(Field field, ConsoleSpinner? spinner = null)

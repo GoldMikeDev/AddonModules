@@ -1,7 +1,8 @@
-﻿using System.Diagnostics;
+﻿using Rename.AddonModules;
+using Rename.AddonModules.Extensions;
+using System.Diagnostics;
 using System.Runtime.Versioning;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.RegularExpressions;
 [assembly: SupportedOSPlatform("windows")]
 namespace Rename.AddonModules.Updater
@@ -23,7 +24,7 @@ namespace Rename.AddonModules.Updater
 			var allowed = new HashSet<string>(StringComparer.Ordinal) { "--updateMajor", "--updateMinor", "--update", "--forceUpdate", "--skipVersion" };
 			foreach (var a in args) { if (a.StartsWith("--", StringComparison.Ordinal) && !allowed.Contains(a)) { Console.WriteLine($" ❌ Unknown arg for update command: {a}"); exitCode = 1; return true; } }
 			try { UpdateTool(toolId, csprojFileName, hasUpdateMajor, hasUpdateMinor, forceUpdate, skipVersion, true, spinner); exitCode = 0; return true; }
-			catch (Exception ex) { Console.WriteLine($" ❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
+			catch (Exception ex) { Console.WriteLine($"❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
 		}
 		internal static void UpdateTool(string toolId, string csprojFileName, bool major, bool minor, bool forceUpdate, bool skipVersion, bool inheritConsole = true, ConsoleSpinner? spinner = null)
 		{
@@ -33,20 +34,20 @@ namespace Rename.AddonModules.Updater
 			var installedNupkg = FindInstalledNupkg(toolId) ?? throw new Exception($"❌ No installed {toolId} package found.");
 			if (!forceUpdate)
 			{
-				Console.WriteLine(" 🔄 Hashing currently installed package...");
+				Console.WriteLine("🔄 Hashing currently installed package...");
 				var currentHash = ComputeFileHash(installedNupkg);
-				Console.WriteLine($" 🔒 Currently installed package hash: {currentHash}");
-				Console.WriteLine(" 🏗️ Building and packing current version...");
+				Console.WriteLine($"🔒 Currently installed package hash: {currentHash}");
+				Console.WriteLine("🏗️ Building and packing current version...");
 				Cmd.Run("dotnet", "build -c Release", projectDir, false, true, true, inheritConsole);
 				Cmd.Run("dotnet", "pack -c Release", projectDir, false, true, true, inheritConsole);
 				var latestForCompare = FindLatestNupkg(nupkgPath);
-				Console.WriteLine($" 📁 Latest nupkg package found: {Path.GetFileName(latestForCompare)} (modified {File.GetLastWriteTime(latestForCompare):dd-MM-yyyy HH:mm:ss})");
-				Console.WriteLine(" 🔄 Hashing new package...");
+				Console.WriteLine($"📁 Latest nupkg package found: {Path.GetFileName(latestForCompare)} (modified {File.GetLastWriteTime(latestForCompare):dd-MM-yyyy HH:mm:ss})");
+				Console.WriteLine("🔄 Hashing new package...");
 				var newHash = ComputeFileHash(latestForCompare);
-				Console.WriteLine($" 🔒 Newly built package hash: {newHash}");
-				Console.WriteLine(" ⚖️ Comparing current hash to new build hash...");
+				Console.WriteLine($"🔒 Newly built package hash: {newHash}");
+				Console.WriteLine("⚖️ Comparing current hash to new build hash...");
 				if (string.Equals(currentHash, newHash, StringComparison.Ordinal)) { Console.WriteLine($" 🔁 {toolId} is up to date. Packages are identical."); return; }
-				Console.WriteLine(" 🆕 Changes detected — proceeding with update...");
+				Console.WriteLine("🆕 Changes detected — proceeding with update...");
 			}
 			string? oldVersion = null;
 			string? newVersion = null;
@@ -66,14 +67,14 @@ namespace Rename.AddonModules.Updater
 					newVersion = $"{majorNum}.{minorNum}.{patchNum}";
 					csprojText = csprojText.Replace($"<Version>{oldVersion}</Version>", $"<Version>{newVersion}</Version>");
 					File.WriteAllText(csprojPath, csprojText);
-					Console.WriteLine($" ⏫ Incremented version: {oldVersion} → {newVersion}");
+					Console.WriteLine($"⏫ Incremented version: {oldVersion} → {newVersion}");
 				}
-				else Console.WriteLine(" ⏭️ Skipping version increment");
-				Console.WriteLine(" 🏗️ Building and packing...");
+				else Console.WriteLine("⏭️ Skipping version increment");
+				Console.WriteLine("🏗️ Building and packing...");
 				Cmd.Run("dotnet", "build -c Release", projectDir, false, true, true, inheritConsole);
 				Cmd.Run("dotnet", "pack -c Release", projectDir, false, true, true, inheritConsole);
 			}
-			catch (Exception ex) { Console.WriteLine($" ❌ Update failed: {ex.Message}"); Cleanup(newVersion, oldVersion, csprojPath); return; }
+			catch (Exception ex) { Console.WriteLine($"❌ Update failed: {ex.Message}"); Cleanup(newVersion, oldVersion, csprojPath); return; }
 			var nupkg = FindLatestNupkg(nupkgPath);
 			var pkgDir = Path.GetDirectoryName(nupkg)!;
 			int currentPid = Environment.ProcessId;
@@ -88,10 +89,10 @@ namespace Rename.AddonModules.Updater
 				RedirectStandardError = false,
 				WorkingDirectory = Environment.CurrentDirectory,
 			};
-			Console.WriteLine(" 🧠 Executing: UpdateScript.ps1");
+			Console.WriteLine("🧠 Executing: UpdateScript.ps1");
 			_ = Process.Start(psi) ?? throw new Exception("❌ Failed to start UpdateScript PowerShell process.");
-			if (spinner != null) { spinner.Start(" ⏳ Closing ToolBox"); AppDomain.CurrentDomain.ProcessExit += (_, _) => spinner.StopAndFlush(); }
-			else { Console.WriteLine(" 🚪 Closing ToolBox..."); }
+			if (spinner != null) { spinner.Start("⏳ Closing ToolBox"); AppDomain.CurrentDomain.ProcessExit += (_, _) => spinner.StopAndFlush(); }
+			else { Console.WriteLine("🚪 Closing ToolBox..."); }
 			var timeoutThread = new Thread(() => {
 				Thread.Sleep(3000);
 				spinner?.StopAndFlush();
@@ -105,7 +106,7 @@ namespace Rename.AddonModules.Updater
 		{
 			var dir = new DirectoryInfo(Environment.CurrentDirectory);
 			while (dir != null) { if (File.Exists(Path.Combine(dir.FullName, csprojFileName))) return dir.FullName; dir = dir.Parent; }
-			var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+			var home = DirectoryExtensions.GetDirectoryPath(DirectoryExtensions.SpecialDirectory.UserProfile);
 			var repos = Path.Combine(home, "source", "repos");
 			var found = TryFindFile(repos, csprojFileName) ?? TryFindFile(home, csprojFileName);
 			if (found != null) { var projDir = Path.GetDirectoryName(found)!; Console.WriteLine($" 📁 Found project at: {projDir}"); return projDir; }
@@ -119,7 +120,7 @@ namespace Rename.AddonModules.Updater
 		}
 		private static string? FindInstalledNupkg(string toolId)
 		{
-			var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+			var home = DirectoryExtensions.GetDirectoryPath(DirectoryExtensions.SpecialDirectory.UserProfile);
 			var toolsRoot = Path.Combine(home, ".dotnet", "tools");
 			if (!Directory.Exists(toolsRoot)) return null;
 			var opts = new EnumerationOptions { RecurseSubdirectories = true, IgnoreInaccessible = true, ReturnSpecialDirectories = false };
@@ -132,7 +133,7 @@ namespace Rename.AddonModules.Updater
 		}
 		private static string FindPowerShellExe()
 		{
-			var psExe = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\WindowsApps\Microsoft.PowerShellPreview_8wekyb3d8bbwe\pwsh.exe");
+			var psExe = Path.Combine(DirectoryExtensions.GetDirectoryPath(DirectoryExtensions.SpecialDirectory.LocalApplicationData), @"Microsoft\WindowsApps\Microsoft.PowerShellPreview_8wekyb3d8bbwe\pwsh.exe");
 			var path = Environment.GetEnvironmentVariable("PATH") ?? "";
 			bool pwshOnPath = path.Split(';').Any(dir => File.Exists(Path.Combine(dir, "pwsh.exe")));
 			if (!File.Exists(psExe) && pwshOnPath) { psExe = "pwsh"; }
@@ -147,7 +148,7 @@ namespace Rename.AddonModules.Updater
 		}
 		private static void Cleanup(string? newVersion, string? oldVersion, string csprojPath)
 		{
-			Console.WriteLine(" 🧹 Performing cleanup...");
+			Console.WriteLine("🧹 Performing cleanup...");
 			try
 			{
 				if (!string.IsNullOrEmpty(oldVersion) && !string.IsNullOrEmpty(newVersion))
@@ -155,11 +156,11 @@ namespace Rename.AddonModules.Updater
 					var rollbackText = File.ReadAllText(csprojPath);
 					rollbackText = rollbackText.Replace($"<Version>{newVersion}</Version>", $"<Version>{oldVersion}</Version>");
 					File.WriteAllText(csprojPath, rollbackText);
-					Console.WriteLine($" ↩️ Restored version number: {newVersion} → {oldVersion}");
+					Console.WriteLine($"↩️ Restored version number: {newVersion} → {oldVersion}");
 				}
 			}
-			catch (Exception ex) { Console.WriteLine($" ⚠️ Cleanup encountered an issue: {ex.Message}"); }
-			Console.WriteLine(" ✅ Cleanup complete.");
+			catch (Exception ex) { Console.WriteLine($"⚠️ Cleanup encountered an issue: {ex.Message}"); }
+			Console.WriteLine("✅ Cleanup complete.");
 		}
 	}
 }
