@@ -20,9 +20,9 @@ namespace Rename.AddonModules.Updater
 			if (!isUpdatePrimary) { exitCode = 2; return false; }
 			bool forceUpdate = args.Contains("--forceUpdate", StringComparer.Ordinal);
 			bool skipVersion = args.Contains("--skipVersion", StringComparer.Ordinal);
-			if (skipVersion && !forceUpdate) { Console.WriteLine(" ❌ --skipVersion requires --forceUpdate as a secondary arg."); exitCode = 1; return true; }
+			if (skipVersion && !forceUpdate) { Console.WriteLine("❌ --skipVersion requires --forceUpdate as a secondary arg."); exitCode = 1; return true; }
 			var allowed = new HashSet<string>(StringComparer.Ordinal) { "--updateMajor", "--updateMinor", "--update", "--forceUpdate", "--skipVersion" };
-			foreach (var a in args) { if (a.StartsWith("--", StringComparison.Ordinal) && !allowed.Contains(a)) { Console.WriteLine($" ❌ Unknown arg for update command: {a}"); exitCode = 1; return true; } }
+			foreach (var a in args) { if (a.StartsWith("--", StringComparison.Ordinal) && !allowed.Contains(a)) { Console.WriteLine($"❌ Unknown arg for update command: {a}"); exitCode = 1; return true; } }
 			try { UpdateTool(toolId, csprojFileName, hasUpdateMajor, hasUpdateMinor, forceUpdate, skipVersion, true, spinner); exitCode = 0; return true; }
 			catch (Exception ex) { Console.WriteLine($"❌ Update failed: {ex.Message}"); exitCode = 1; return true; }
 		}
@@ -46,7 +46,7 @@ namespace Rename.AddonModules.Updater
 				var newHash = ComputeFileHash(latestForCompare);
 				Console.WriteLine($"🔒 Newly built package hash: {newHash}");
 				Console.WriteLine("⚖️ Comparing current hash to new build hash...");
-				if (string.Equals(currentHash, newHash, StringComparison.Ordinal)) { Console.WriteLine($" 🔁 {toolId} is up to date. Packages are identical."); return; }
+				if (string.Equals(currentHash, newHash, StringComparison.Ordinal)) { Console.WriteLine($"🔁 {toolId} is up to date. Packages are identical."); return; }
 				Console.WriteLine("🆕 Changes detected — proceeding with update...");
 			}
 			string? oldVersion = null;
@@ -109,7 +109,7 @@ namespace Rename.AddonModules.Updater
 			var home = DirectoryExtensions.GetDirectoryPath(DirectoryExtensions.SpecialDirectory.UserProfile);
 			var repos = Path.Combine(home, "source", "repos");
 			var found = TryFindFile(repos, csprojFileName) ?? TryFindFile(home, csprojFileName);
-			if (found != null) { var projDir = Path.GetDirectoryName(found)!; Console.WriteLine($" 📁 Found project at: {projDir}"); return projDir; }
+			if (found != null) { var projDir = Path.GetDirectoryName(found)!; Console.WriteLine($"📁 Found project at: {projDir}"); return projDir; }
 			throw new Exception($"❌ Could not locate {csprojFileName}.");
 		}
 		private static string? TryFindFile(string root, string fileName)

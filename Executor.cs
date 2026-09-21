@@ -2,7 +2,7 @@ using System.Diagnostics;
 using System.Text;
 namespace Rename.AddonModules
 {
-	public static class Runner
+	public static class Executor
 	{
 		public static (int ExitCode, string Output, string Error) Launch(string exe, string args, string? workingDir, bool silent, bool streamToConsole, bool exitOnFail, bool inheritConsole)
 		{

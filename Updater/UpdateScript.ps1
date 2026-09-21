@@ -26,34 +26,34 @@ function Copy-ToLocalFeed($localSource, $toolID, $latest)
 {
     Get-ChildItem -Path $localSource -Filter "$toolID.*.nupkg" | Remove-Item -Force
     Copy-Item $latest.FullName -Destination $localSource
-    Write-Host "📦 Copied $($latest.Name) to local nupkg install directory"
+    Write-Host " 📦 Copied $($latest.Name) to local nupkg install directory"
 }
 $hwnd = [Console.Win32]::GetConsoleWindow()
 $ownerPID = 0
 [void][Console.Win32]::GetWindowThreadProcessId($hwnd, [ref]$ownerPID)
-Write-Host "⌛ Waiting for $toolID process PID: $PIDtoWait to exit..."
+Write-Host " ⌛ Waiting for $toolID process PID: $PIDtoWait to exit..."
 while (Get-Process -Id $PIDtoWait -ErrorAction SilentlyContinue) { Start-Sleep -Milliseconds 200 }
-Write-Host "✅ $toolID process exited. Proceeding with update..."
-Write-Host "🏗️ Moving new package to local nupkg install directory..."
+Write-Host " ✅ $toolID process exited. Proceeding with update..."
+Write-Host " 🏗️ Moving new package to local nupkg install directory..."
 $latest = Get-ChildItem -Path $pkgDir -Filter "$toolID.*.nupkg" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 if ($latest)
 {
     try
     {
-        Write-Host "🔍 Searching for user defined local nuget feed..."
+        Write-Host " 🔍 Searching for user defined local nuget feed..."
         $localSource = (Select-Xml -Path "$env:APPDATA\NuGet\NuGet.Config" -XPath "//packageSources/add[@key='local']/@value").Node.Value
-        if (-not $localSource) { throw "⚠️ No user defined local nuget feed defined" }
-        Write-Host "🎯 Found user defined local nuget feed"
+        if (-not $localSource) { throw " ⚠️ No user defined local nuget feed defined" }
+        Write-Host " 🎯 Found user defined local nuget feed"
         Copy-ToLocalFeed $localSource $toolID $latest
     }
     catch
     {
         try
         {
-            Write-Host "🔍 Searching for globally defined local nuget feed..."
+            Write-Host " 🔍 Searching for globally defined local nuget feed..."
             $localSource = (Select-Xml -Path  "${env:ProgramFiles(x86)}\NuGet\Config\NuGet.Config" -XPath "//packageSources/add[@key='local']/@value").Node.Value
-            if (-not $localSource) { throw "⚠️ No globally defined local nuget feed defined" }
-            Write-Host "🎯 Found globally defined local nuget feed"
+            if (-not $localSource) { throw " ⚠️ No globally defined local nuget feed defined" }
+            Write-Host " 🎯 Found globally defined local nuget feed"
             Copy-ToLocalFeed $localSource $toolID $latest
         }
         catch
@@ -61,13 +61,13 @@ if ($latest)
             while ($true)
             {
                 $top = [Console]::CursorTop
-                $addLocal = Read-Host "❓ Add locally defined feed (Y/N)"
+                $addLocal = Read-Host " ❓ Add locally defined feed (Y/N)"
                 if ($addLocal -eq "Y")
                 {
                     while ($true)
                     {
                         $top = [Console]::CursorTop
-                        $addLocal = Read-Host "❓Use default location: `"$env:USERPROFILE\source\repos\.nupkg\`" (Y/N)"
+                        $addLocal = Read-Host " ❓Use default location: `"$env:USERPROFILE\source\repos\.nupkg\`" (Y/N)"
                         if ($addLocal -eq "Y")
                         {
                             $localFeed = "$env:USERPROFILE\source\repos\.nupkg\"
@@ -78,12 +78,12 @@ if ($latest)
                             while ($true)
                             {
                                 $topLocalFeed = [Console]::CursorTop
-                                $localFeed = Read-Host "📂 Enter desired directory path"
-                                Write-Host "ℹ️ Entered directory path is: $localFeed"
+                                $localFeed = Read-Host " 📂 Enter desired directory path"
+                                Write-Host " ℹ️ Entered directory path is: $localFeed"
                                 while ($true)
                                 {
                                     $top = [Console]::CursorTop
-                                    $addLocal = Read-Host "❓Is this correct (Y/N)"
+                                    $addLocal = Read-Host " ❓Is this correct (Y/N)"
                                     if ($addLocal -eq "Y") { break }
                                     elseif ($addLocal -eq "N") { Clear-Line $topLocalFeed }
                                     else { Clear-Line $top }
@@ -96,7 +96,7 @@ if ($latest)
                     while ($true)
                     {
                         $top = [Console]::CursorTop
-                        $addLocal = Read-Host "❓ Add to user or global config (U/G)"
+                        $addLocal = Read-Host " ❓ Add to user or global config (U/G)"
                         if ($addLocal -eq "U")
                         {
                             $configPath = "$env:APPDATA\NuGet\NuGet.Config"
@@ -129,28 +129,28 @@ if ($latest)
 }
 else
 {
-    Write-Host "❌ No nupkg found in $pkgDir"
+    Write-Host " ❌ No nupkg found in $pkgDir"
     if ($ownerPID -eq $PID) { Read-Host "🚪 Press Enter to exit" }
     exit 1
 }
-Write-Host "⚙️ Updating $toolID..."
-Write-Host "🧠 Executing: dotnet tool update --global $toolID"
+Write-Host " ⚙️ Updating $toolID..."
+Write-Host " 🧠 Executing: dotnet tool update --global $toolID"
 & dotnet tool update --global $toolID --source $localSource --verbosity detailed
 if ($LASTEXITCODE -eq 0)
 {
     $timestamp = Get-Date -Format "dd-MM-yyyy HH:mm:ss"
-    Write-Host "✅ $toolID successfully updated to latest build at $timestamp"
+    Write-Host " ✅ $toolID successfully updated to latest build at $timestamp"
 }
 else
 {
-    Write-Host "❌ $toolID update failed with exit code $LASTEXITCODE"
+    Write-Host " ❌ $toolID update failed with exit code $LASTEXITCODE"
     if (-not $skipVersion)
     {
         $proj = $csprojPath
         $text = Get-Content $proj -Raw
         $text = $text -replace "<Version>$newVersion</Version>", "<Version>$oldVersion</Version>"
         Set-Content $proj $text -Encoding UTF8
-        Write-Host "↩️ Restored version number: $newVersion → $oldVersion"
+        Write-Host " ↩️ Restored version number: $newVersion → $oldVersion"
     }
 }
-if ($ownerPID -eq $PID) { Read-Host "🚪 Press Enter to exit" }
+if ($ownerPID -eq $PID) { Read-Host " 🚪 Press Enter to exit" }
