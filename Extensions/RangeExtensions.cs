@@ -3,22 +3,22 @@ namespace Rename.AddonModules.Extensions
 {
 	static class RangeExtensions
 	{
-		internal static Range InclusiveRange(int start, int end) => start..(end + 1);
-		internal static int Length(this Range r) => r.End.Value - r.Start.Value;
-		internal static string ReadField(byte[,] data, Encoding encoding, int row, Range field)
+		public static Range InclusiveRange(int start, int end) => start..(end + 1);
+		public static int Length(this Range r) => r.End.Value - r.Start.Value;
+		public static string ReadField(byte[,] data, Encoding encoding, int row, Range field)
 		{
-			int start = field.Start.Value;
-			int length = field.Length();
-			byte[] bytes = new byte[length];
-			for (int i = 0; i < length; i++) bytes[i] = data[row, start + i];
+			var start = field.Start.Value;
+			var length = field.Length();
+			var bytes = new byte[length];
+			for (var i = 0; i < length; i++) bytes[i] = data[row, start + i];
 			return encoding.GetString(bytes);
 		}
-		internal static void WriteField(byte[,] data, Encoding encoding, int row, Range field, string value)
+		public static void WriteField(byte[,] data, Encoding encoding, int row, Range field, string value)
 		{
-			int start = field.Start.Value;
-			int length = field.Length();
-			byte[] bytes = encoding.GetBytes(value.PadLeft(length, '0')[..length]);
-			for (int i = 0; i < length; i++) data[row, start + i] = bytes[i];
+			var start = field.Start.Value;
+			var length = field.Length();
+			var bytes = encoding.GetBytes(value.PadLeft(length, '0')[..length]);
+			for (var i = 0; i < length; i++) data[row, start + i] = bytes[i];
 		}
 	}
 }

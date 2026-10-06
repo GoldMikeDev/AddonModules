@@ -1,9 +1,8 @@
-﻿using System.Reflection;
-namespace Rename.AddonModules.Extensions
+﻿namespace Rename.AddonModules.Extensions
 {
-	static class ParseExtensions
+	public class ParseExtensions
 	{
-		internal static dynamic Parse(string type, object data)
+		public static object Parse(string type, object data)
 		{
 			object? output = null;
 			object?[] input = [data, output];
@@ -25,20 +24,19 @@ namespace Rename.AddonModules.Extensions
 				"ushort" => "System.UInt16",
 				_ => throw new ParseException($"Unsupported type: {type}"),
 			};
-			Type t = Type.GetType(type) ?? throw new ParseException($"Type not found: {type}");
+			var t = Type.GetType(type) ?? throw new ParseException($"Type not found: {type}");
 			if (data.GetType() == t) { output = data; return output; }
-			MethodInfo tryParse = t.GetMethod("TryParse", [typeof(string), t.MakeByRefType()]) ?? throw new ParseException($"Method not found: TryParse");
-			object? result = tryParse.Invoke(null, input) ?? throw new ParseException($"Failed to parse {type}");
-			bool success = (bool)result;
+			var tryParse = t.GetMethod("TryParse", [typeof(string), t.MakeByRefType()]) ?? throw new ParseException($"Method not found: TryParse");
+			var result = tryParse.Invoke(null, input) ?? throw new ParseException($"Failed to parse {type}");
+			var success = (bool)result;
 			output = input[1] ?? throw new ParseException($"Failed to parse {type}");
-			if (success) { return output; }
-			else { throw new ParseException($"Failed to parse {type}"); }
+			return success ? output : throw new ParseException($"Failed to parse {type}");
 		}
 	}
-	class ParseException : Exception
+	public class ParseException : Exception
 	{
-		internal ParseException() { }
-		internal ParseException(string message) : base(message) { }
+		public ParseException() { }
+		public ParseException(string message) : base(message) { }
 		public override string? StackTrace => null;
 	}
 }

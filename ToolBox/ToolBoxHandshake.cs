@@ -1,13 +1,14 @@
-﻿namespace Rename.AddonModules.ToolBox
+﻿using Rename.AddonModules;
+namespace Rename.AddonModules.ToolBox
 {
 	class ToolBoxHandshake
 	{
 		public static bool VerifyToolBoxHost()
 		{
-			const string sentinel = "🔍 Verifying parent is ToolBox...";
-			bool isToolBox = string.Equals(Environment.GetEnvironmentVariable("TOOLBOX_HOST"), "1", StringComparison.Ordinal);
-			string prefix = (!Console.IsOutputRedirected && isToolBox) ? (Environment.GetEnvironmentVariable("TOOLBOX_PREFIX") ?? " 🧰 > ") : "";
-			Console.WriteLine(prefix + sentinel);
+			const string Sentinel = "🔍 Verifying parent is ToolBox...";
+			var isToolBox = string.Equals(Environment.GetEnvironmentVariable("TOOLBOX_HOST"), "1", StringComparison.Ordinal);
+			var prefix = (!Console.IsOutputRedirected && isToolBox) ? (Environment.GetEnvironmentVariable("TOOLBOX_PREFIX") ?? " 🧰 > ") : "";
+			Console.WriteLine(prefix + Sentinel);
 			if (isToolBox)
 			{
 				Console.WriteLine(prefix + "✅ ToolBox detected.");
@@ -15,11 +16,11 @@
 			}
 			using var spinner = new ConsoleSpinner(new Lock(), "");
 			if (!Console.IsOutputRedirected) spinner.Start("⏳ Waiting for ToolBox");
-			long end = Environment.TickCount64 + 5000;
-			var readTask = Task.Run(() => Console.ReadLine());
+			var end = Environment.TickCount64 + 5000;
+			Task<string?> readTask = Task.Run(Console.ReadLine);
 			while (Environment.TickCount64 < end)
 			{
-				int remaining = (int)Math.Max(0, end - Environment.TickCount64);
+				var remaining = (int)Math.Max(0, end - Environment.TickCount64);
 				if (readTask.Wait(remaining))
 				{
 					var resp = (readTask.Result ?? "").Trim().TrimStart('\uFEFF');

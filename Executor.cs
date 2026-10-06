@@ -16,16 +16,15 @@ namespace Rename.AddonModules
 				if (exe.Equals("dotnet")) args += " --tl:on";
 				var psi = new ProcessStartInfo(exe, args) { WorkingDirectory = workingDir ?? Environment.CurrentDirectory, UseShellExecute = false, CreateNoWindow = !inheritConsole, RedirectStandardOutput = !inheritConsole, RedirectStandardError = !inheritConsole };
 				if (!inheritConsole) { psi.StandardOutputEncoding = Encoding.UTF8; psi.StandardErrorEncoding = Encoding.UTF8; }
-				using var p = new Process { StartInfo = psi };
+				using var p = new Process();
+				p.StartInfo = psi;
 				if (inheritConsole)
 				{
 					p.Start();
 					p.WaitForExit();
-					if (!silent)
-					{
-						Console.WriteLine($"🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
-						if (p.ExitCode != 0 && exitOnFail) Environment.Exit(p.ExitCode);
-					}
+					if (silent) return (p.ExitCode, string.Empty, string.Empty);
+					Console.WriteLine($"🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
+					if (p.ExitCode != 0 && exitOnFail) Environment.Exit(p.ExitCode);
 					return (p.ExitCode, string.Empty, string.Empty);
 				}
 				var sbOut = new StringBuilder();
@@ -38,24 +37,23 @@ namespace Rename.AddonModules
 				p.WaitForExit();
 				var output = sbOut.ToString().Trim();
 				var error = sbErr.ToString().Trim();
-				if (!silent)
+				if (silent) return (p.ExitCode, output, error);
+				if (p.ExitCode != 0 && !streamToConsole)
 				{
-					if (p.ExitCode != 0 && !streamToConsole)
-					{
-						Console.WriteLine($"❌ Command failed to execute: {exe} {args}");
-						Console.WriteLine("----------------------------------------------------------------");
-						if (!string.IsNullOrWhiteSpace(output)) Console.WriteLine($"STDOUT:\n{output}");
-						if (!string.IsNullOrWhiteSpace(error)) Console.WriteLine($"STDERR:\n{error}");
-						Console.WriteLine("----------------------------------------------------------------");
-					}
-					Console.WriteLine($"🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
-					if (p.ExitCode != 0 && exitOnFail) { Console.Out.Flush(); Console.Error.Flush(); Environment.Exit(p.ExitCode); }
+					Console.WriteLine($"❌ Command failed to execute: {exe} {args}");
+					Console.WriteLine("----------------------------------------------------------------");
+					if (!string.IsNullOrWhiteSpace(output)) Console.WriteLine($"STDOUT:\n{output}");
+					if (!string.IsNullOrWhiteSpace(error)) Console.WriteLine($"STDERR:\n{error}");
+					Console.WriteLine("----------------------------------------------------------------");
 				}
+				Console.WriteLine($"🚪 Exit Code {p.ExitCode}: {ExitMessage(p.ExitCode)}");
+				if (p.ExitCode == 0 || !exitOnFail) return (p.ExitCode, output, error);
+				Console.Out.Flush(); Console.Error.Flush(); Environment.Exit(p.ExitCode);
 				return (p.ExitCode, output, error);
 			}
 			catch (Exception ex) { Console.WriteLine($"❌ failed to execute '{exe} {args}': {ex.Message}"); return (-1, string.Empty, ex.Message); }
 		}
-		private static string ExitMessage(long code)
+		 static string ExitMessage(long code)
 		{
 			return code switch
 			{
